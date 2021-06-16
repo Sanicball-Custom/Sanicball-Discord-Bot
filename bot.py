@@ -6,6 +6,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import srcomapi as speedrun
+from sanicball import ServerList
 
 sanic_colour = 0x4D76B2
 
@@ -34,7 +35,8 @@ async def tracks(ctx):
 @bot.command(name="categories")
 async def categories(ctx):
     with ctx.typing():
-        embed = discord.Embed(title="Sanicball Categories", description=f"there are {len(sanic.categories)} categories in Sanicball",
+        embed = discord.Embed(title="Sanicball Categories",
+                              description=f"there are {len(sanic.categories)} categories in Sanicball",
                               color=sanic_colour, url="https://www.speedrun.com/sanicball")
         for category in sanic.categories:
             embed.add_field(name=category.name, value="will add helpful description here soon xd", inline=False)
@@ -43,22 +45,34 @@ async def categories(ctx):
 
 @bot.command(name="status")
 async def status(ctx):
-    with ctx.typing():
-        with request.urlopen(server_list_url) as _response:
-            html = _response.read()
-        html = str(html)[2:-1].split("<br>")
-        html.pop()
-        print(html)
+    servers = ServerList(server_list_url)
 
-        embed = discord.Embed(title="Sanicball servers status",
-                              description=f"There are currently {len(html)} public servers online", url=server_list_url,
-                              color=sanic_colour)
+    embed = discord.Embed(title="Sanicball servers status",
+                          description=f"There are currently {len(servers.servers)} public servers online",
+                          url=server_list_url,
+                          color=sanic_colour)
+    i = 0
+    for server in servers.servers:
+        i += 1
+        embed.add_field(name=f"{i}: {server.name}", value=f'ip: {server.ip}\n'
+                                                          f'port: {server.port}', inline=False)
+    await ctx.send(embed=embed)
 
-        for entry in html:
-            _split = entry.split(":")
-            embed.add_field(name=entry, value=f'ip: {_split[0]}\n'
-                                              f'port: {_split[-1]}', inline=False)
-        await ctx.send(embed=embed)
+
+@bot.command(name="info")
+async def info(ctx, server):
+    if not server.isdigit():
+        ctx.send(f"Server id must be a number!")
+        return
+
+    server = ServerList(server_list_url).servers[int(server) - 1]
+    embed = discord.Embed(title=server.name, description=f"ip: {server.ip}\n"
+                                                         f"port: {server.port}", url=server_list_url,
+                          colour=sanic_colour)
+    embed.add_field(name="status", value=f"Max players: {server.max_players}\n"
+                                         f"Players racing: {server.players}\n"
+                                         f"Is racing: {'yes' if server.is_racing else 'no'}")
+    await ctx.send(embed=embed)
 
 
 bot.run(TOKEN)
